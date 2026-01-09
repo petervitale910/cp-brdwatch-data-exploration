@@ -1,0 +1,63 @@
+---
+title: "BirdWatch: exploratory data analysis"
+author: "Nathalie Bonnet"
+date: 2026-01-08
+format: html
+---
+
+The purpose of this document is to walk through preliminary data analysis for the MEDS 2026 BirdWatch Capstone project. 
+
+Goals:
+- explore the USGS California Gap status geodatabase and specifically visualize overlapping areas
+- Look at the distribution of bird data over time
+- Understand common bird species across space
+
+```{r}
+# Setup code
+
+# Load in necessary libraries
+library(tidyverse)
+library(terra)
+library(tidyterra)
+library(here)
+library(tmap)
+library(janitor)
+library(sf)
+library(stars)
+
+# read in the data
+area_search <- read_csv(here("data", "DataDownload_AreaSearch_2025-09-17_16-05-51.csv")) %>% 
+  clean_names()
+
+point_counts <- read_csv(here("data", "DataDownload_PointCount_2025-09-17_16-15-10.csv")) %>% 
+  clean_names()
+
+marshbirds <- read_csv(here("data", "DataDownload_SecretiveMarshbird_2025-09-17_16-16-50.csv")) %>% 
+  clean_names()
+
+gap <- st_read(here("data", "PADUS4_1_State_CA_GDB_KMZ", "PADUS4_1_StateCA.gdb"))
+```
+
+Explore area search data
+```{r}
+# What are the protocols in the dataset?
+print(unique(area_search$protocol_code))
+# Make sure to explore these
+
+# How many unique plots were surveyed?
+print(length(unique(area_search$plot_name)))
+
+# How many unique species codes are there?
+print(length(unique(area_search$species_code)))
+
+
+species_sum <- area_search %>% 
+  group_by(species_code) %>% 
+  summarise(count = n()) %>% 
+  slice_max(order_by = count, n = 20)
+
+  ggplot(data = species_sum, aes(x = species_code, y = count, fill = species_code)) +
+  geom_bar(stat = "identity") +
+    coord_flip()
+```
+
