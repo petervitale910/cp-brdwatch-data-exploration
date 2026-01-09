@@ -1,0 +1,97 @@
+---
+title: "exploratory_flash_talk"
+format: html
+---
+
+Going to load neccesary packages
+
+```{r}
+pacman::p_load('tidyverse', 
+               'sf', 
+               'here',
+               'janitor',
+               'tmap', 
+               'kableExtra',
+               'patchwork',
+               'ggthemes',
+               'colorRamps',
+               'stars',
+               'terra')
+```
+
+read gdb
+
+```{r}
+gap <- st_read(here::here('data','PADUS4_1_State_CA_GDB_KMZ', 'PADUS4_1_StateCA.gdb'))
+```
+Lets map out the base gap statuses
+```{r}
+tm_shape(gap)+
+  tm_polygons(fill = "GAP_Sts")
+```
+Now lets import the point counts and merge them to attempt to plot them 
+
+```{r}
+point_count <- read_csv(here::here('data', 'point_count.csv'))
+```
+Now we are going to select the top 10 populous birds, and then filter to just those species
+
+```{r}
+top_10_species <- point_count %>% 
+  clean_names() %>% 
+  group_by(common_name) %>%
+  summarise(total_count = sum(observation_count, na.rm = TRUE)) %>%
+  arrange(desc(total_count)) %>%
+  slice_head(n = 10) %>% 
+  select(common_name) %>% 
+  pull()
+```
+
+now we select the top 10 species out of the point counts to plot
+```{r}
+top_10_point_count <- point_count %>% 
+  clean_names() %>% 
+  filter(common_name == top_10_species) %>% 
+  select(common_name, observation_count, decimal_latitude, decimal_longitude, study_area)
+```
+
+Now I want to do some sort of sorting by size per locale 
+
+```{r}
+top_10_species_size <- point_count %>% 
+  clean_names() %>% 
+  group_by(common_name, study_area) %>%
+  summarise(total_count = sum(observation_count, na.rm = TRUE)) %>%
+  arrange(desc(total_count)) %>%
+  slice_head(n = 10) %>% 
+  mutate(
+    size_val = scales::rescale(x = total_count, 
+                                  to = c(0.3, 1))
+    ) %>% 
+    select(common_name, study_area, size_val)
+```
+
+
+
+Now I merge the two and it into a geodataframe
+
+```{r}
+point_count_gdf <- left_join(top_10_point_count, top_10_species_size, 
+                             by = 'study_area') %>%  
+  st_as_sf( coords = c("decimal_longitude", "decimal_latitude"), crs = "EPSG:4269") 
+```
+
+```{r}
+#| warning: FALSE
+
+tm_shape(gap)+
+  tm_polygons(fill = "GAP_Sts")+
+tm_shape(point_count_gdf)+
+  tm_dots(fill = 'common_name.y', 
+          size = 'size_val')
+```
+
+
+
+
+
