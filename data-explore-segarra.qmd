@@ -1,0 +1,98 @@
+---
+title: "data-explore-segarra"
+format: html
+---
+
+## Initial Data Exploration
+The data for this project include point count, area searches, and marsh bird surveys. Initial ideas for visualizations include:
+- what is the most dominant habitat in the study?
+- distribution of sampling based on habitat
+- distribution of point counts with vegetation data (geom column?)
+
+```{r}
+library(tidyverse)
+library(here)
+library(sf)
+library(stars)
+library(tmap)
+```
+##Data import
+```{r}
+#...AKN data....
+
+area_search <- read_csv(here("data_9_17", "DataDownload_AreaSearch_2025-09-17_16-05-51.csv"))
+
+point_counts <- read_csv(here("data_9_17", "DataDownload_PointCount_2025-09-17_16-15-10.csv"))
+
+marsh <- read_csv(here("data_9_17", "DataDownload_SecretiveMarshbird_2025-09-17_16-16-50.csv"))
+
+#...usgs protected ares....
+pa_gdb <- st_read(here("data_9_17", "USGS_protected_areas","PADUS4_1_StateCA.gdb"))
+
+```
+## Explore point count df
+```{r}
+# View df
+head(point_counts)
+str(point_counts)
+# Unique values in protocol (11)
+unique(point_counts$ProtocolCode) 
+# Unique values in habitat
+length(unique(point_counts$HabitatType)) # 72 habitats
+# NA values
+colSums(is.na(point_counts))
+sum(is.na(point_counts))
+
+```
+
+```{r}
+  point_counts %>%
+  ggplot(aes(x = HabitatType)) +
+  geom_bar() +
+  coord_flip() +
+  theme(axis.text.y = element_text(angle = 45, hjust = 1, vjust = 1))
+  
+point_counts %>%
+  count(HabitatType) %>%
+  arrange(desc(n))
+
+point_counts %>% 
+  count(HabitatType)
+
+```
+
+```{r}
+# convert lat and long to geometry
+point_counts <- point_counts %>% 
+  st_as_sf(coords = c("DecimalLongitude", "DecimalLatitude"), crs = 4326)
+# View geometry type 
+unique(st_geometry_type(point_counts))
+# Attempt to plot... too slow
+ggplot(data = point_counts, aes(SpeciesCode)) +
+  geom_sf()
+
+tm_shape(point_counts) +
+  tm_()
+
+```
+
+```{r}
+# Filter protected areas to GAP status 1 and 2 
+pa_one_two <- pa_gdb %>%
+  filter(GAP_Sts %in% c("1", "2"))
+
+```
+
+
+```{r}
+# violin plot of species richness per habitat
+
+point_counts %>% 
+  filter(HabitatType =="GR") %>% 
+  ggplot(aes(SpeciesCode, HabitatType)) +
+  geom_col() +
+  coord_flip()
+  theme(axis.text.y = element_text(angle = 45, hjust = 1, vjust = 1))
+
+```
+
