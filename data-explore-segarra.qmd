@@ -71,6 +71,7 @@ unique(st_geometry_type(point_counts))
 ggplot(data = point_counts, aes(SpeciesCode)) +
   geom_sf()
 
+#Plot point counts 
 tm_shape(point_counts) +
   tm_()
 
