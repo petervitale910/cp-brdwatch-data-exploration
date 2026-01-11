@@ -1,0 +1,143 @@
+---
+title: "exploratory_flash_talk"
+format: html
+---
+
+Going to load neccesary packages
+
+```{r}
+pacman::p_load('tidyverse', 
+               'sf', 
+               'here',
+               'janitor',
+               'tmap', 
+               'kableExtra',
+               'patchwork',
+               'ggthemes',
+               'colorRamps',
+               'stars',
+               'terra')
+```
+
+read gdb
+
+```{r}
+gap <- st_read(here::here('data','PADUS4_1_State_CA_GDB_KMZ', 'PADUS4_1_StateCA.gdb'))
+```
+Lets map out the base gap statuses
+```{r}
+tm_shape(gap)+
+  tm_polygons(fill = "GAP_Sts")
+```
+Now lets import the point counts and merge them to attempt to plot them 
+
+```{r}
+point_count <- read_csv(here::here('data', 'point_count.csv')) %>% 
+  clean_names()
+```
+Now we are going to select the top 10 populous birds, and then filter to just those species
+
+```{r}
+top_10_species <- point_count %>% 
+  clean_names() %>% 
+  group_by(common_name) %>%
+  summarise(total_count = sum(observation_count, na.rm = TRUE)) %>%
+  arrange(desc(total_count)) %>%
+  slice_head(n = 10) %>% 
+  select(common_name) %>% 
+  pull()
+```
+
+now we select the top 10 species out of the point counts to plot
+```{r}
+top_10_point_count <- point_count %>% 
+  clean_names() %>% 
+  filter(common_name == top_10_species) %>% 
+  select(common_name, observation_count, decimal_latitude, decimal_longitude, study_area)
+```
+```{r}
+site_points <- point_count %>% 
+  clean_names() %>%
+  group_by(study_area) %>%
+  summarise(
+    total_count = sum(observation_count, na.rm = TRUE),
+    lon = mean(decimal_longitude, na.rm = TRUE),
+    lat = mean(decimal_latitude, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    size_val = scales::rescale(total_count, to = c(.3, 3))
+  )
+```
+
+
+
+Now I want to do some sort of sorting by size per locale 
+
+```{r}
+point_size <- point_count %>% 
+  clean_names() %>% 
+  group_by( study_area) %>%
+  summarise(total_count = sum(observation_count, na.rm = TRUE)) %>%
+  arrange(desc(total_count)) %>%
+  mutate(
+    size_val = scales::rescale(x = total_count, 
+                                  to = c(0.3, 2))
+    ) %>% 
+    select(study_area, size_val)
+```
+
+
+
+Now I merge the two and it into a geodataframe
+
+```{r}
+n_frames <- 60
+
+point_count_gdf <- site_points %>%  
+  st_as_sf(coords = c("lon", "lat"), crs = 4269) %>% 
+  arrange(total_count) %>%
+  mutate(
+    frame_order = cut(
+      row_number(),
+      breaks = n_frames,
+      labels = FALSE
+    ),
+    frame_order = factor(frame_order)
+  )
+```
+
+```{r}
+#| warning: FALSE
+
+animated_map <- tm_shape(gap)+
+  tm_polygons(fill = "GAP_Sts",
+              fill.legend = tm_legend(title = "GAP Status"))+
+tm_shape(point_count_gdf)+
+  tm_dots(fill = 'grey', 
+          size = 'size_val',
+          col = 'black',
+          size.legend = tm_legend(title = "Number of Observations",
+                                  labels = c(".5" = ">2000",
+                                             '1' = "~7000",
+                                             '1.5' = '~12,000',
+                                             '2' = '~18,000',
+                                             '2.5' = '~23,000',
+                                             '3' = '~28,000')),
+          fill_alpha = .5)+
+  tm_animate(
+    frames  = "frame_order",
+    fps = 1,
+    play = "loop"
+  )
+tmap_animation(
+  animated_map,
+  filename = "site_points_animation.mp4",
+  delay = 50
+)
+```
+
+
+
+
+
