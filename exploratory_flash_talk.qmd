@@ -32,7 +32,8 @@ tm_shape(gap)+
 Now lets import the point counts and merge them to attempt to plot them 
 
 ```{r}
-point_count <- read_csv(here::here('data', 'point_count.csv'))
+point_count <- read_csv(here::here('data', 'point_count.csv')) %>% 
+  clean_names()
 ```
 Now we are going to select the top 10 populous birds, and then filter to just those species
 
@@ -54,21 +55,36 @@ top_10_point_count <- point_count %>%
   filter(common_name == top_10_species) %>% 
   select(common_name, observation_count, decimal_latitude, decimal_longitude, study_area)
 ```
+```{r}
+site_points <- point_count %>% 
+  clean_names() %>%
+  group_by(study_area) %>%
+  summarise(
+    total_count = sum(observation_count, na.rm = TRUE),
+    lon = mean(decimal_longitude, na.rm = TRUE),
+    lat = mean(decimal_latitude, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    size_val = scales::rescale(total_count, to = c(.3, 3))
+  )
+```
+
+
 
 Now I want to do some sort of sorting by size per locale 
 
 ```{r}
-top_10_species_size <- point_count %>% 
+point_size <- point_count %>% 
   clean_names() %>% 
-  group_by(common_name, study_area) %>%
+  group_by( study_area) %>%
   summarise(total_count = sum(observation_count, na.rm = TRUE)) %>%
   arrange(desc(total_count)) %>%
-  slice_head(n = 10) %>% 
   mutate(
     size_val = scales::rescale(x = total_count, 
-                                  to = c(0.3, 1))
+                                  to = c(0.3, 2))
     ) %>% 
-    select(common_name, study_area, size_val)
+    select(study_area, size_val)
 ```
 
 
@@ -76,19 +92,49 @@ top_10_species_size <- point_count %>%
 Now I merge the two and it into a geodataframe
 
 ```{r}
-point_count_gdf <- left_join(top_10_point_count, top_10_species_size, 
-                             by = 'study_area') %>%  
-  st_as_sf( coords = c("decimal_longitude", "decimal_latitude"), crs = "EPSG:4269") 
+n_frames <- 60
+
+point_count_gdf <- site_points %>%  
+  st_as_sf(coords = c("lon", "lat"), crs = 4269) %>% 
+  arrange(total_count) %>%
+  mutate(
+    frame_order = cut(
+      row_number(),
+      breaks = n_frames,
+      labels = FALSE
+    ),
+    frame_order = factor(frame_order)
+  )
 ```
 
 ```{r}
 #| warning: FALSE
 
-tm_shape(gap)+
-  tm_polygons(fill = "GAP_Sts")+
+animated_map <- tm_shape(gap)+
+  tm_polygons(fill = "GAP_Sts",
+              fill.legend = tm_legend(title = "GAP Status"))+
 tm_shape(point_count_gdf)+
-  tm_dots(fill = 'common_name.y', 
-          size = 'size_val')
+  tm_dots(fill = 'grey', 
+          size = 'size_val',
+          col = 'black',
+          size.legend = tm_legend(title = "Number of Observations",
+                                  labels = c(".5" = ">2000",
+                                             '1' = "~7000",
+                                             '1.5' = '~12,000',
+                                             '2' = '~18,000',
+                                             '2.5' = '~23,000',
+                                             '3' = '~28,000')),
+          fill_alpha = .5)+
+  tm_animate(
+    frames  = "frame_order",
+    fps = 1,
+    play = "loop"
+  )
+tmap_animation(
+  animated_map,
+  filename = "site_points_animation.mp4",
+  delay = 50
+)
 ```
 
 
