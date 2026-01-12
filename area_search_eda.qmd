@@ -58,7 +58,6 @@ area10 <- area_search %>%
 "GCKI" = 'Golden-crowned Kinglet', "BEWR" = 'Bewicks Wren', "WIWA" = 'Wilsons Warbler',
 "BUSH" = 'Bushtit'))
 
-point10$species_code
 point10 <- point_counts %>% 
   group_by(species_code) %>% 
   summarise(count = n()) %>% 
@@ -83,8 +82,9 @@ area10_plot <- ggplot(data = area10, aes(x = common_name, y = count, fill = comm
   labs(title = "Ten Most Counted Species in Each Type of Survey", 
        x = "Area Search") +
   theme(legend.position = "none", 
-        axis.title.x = element_blank()) +
-  scale_fill_paletteer_d("pals::tol")
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(size = 7)) +
+ scale_fill_paletteer_d("jcolors::pal12")
 
 
 point10_plot <- ggplot(data = point10, aes(x = common_name, y = count, fill = common_name)) +
@@ -93,8 +93,9 @@ point10_plot <- ggplot(data = point10, aes(x = common_name, y = count, fill = co
     coord_flip() +
   labs(x = "Point Count") +
   theme(legend.position = "none", 
-        axis.title.x = element_blank()) +
-  scale_fill_paletteer_d("pals::tol")
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(size = 7)) +
+ scale_fill_paletteer_d("jcolors::pal12")
 
 
 marsh_plot <- ggplot(data = marsh12, aes(x = common_name, y = count, fill = common_name)) +
@@ -103,8 +104,9 @@ marsh_plot <- ggplot(data = marsh12, aes(x = common_name, y = count, fill = comm
   coord_flip() +
   labs(x = "Marshbird Survey") +
   theme(legend.position = "none", 
-        axis.title.x = element_blank()) +
-  scale_fill_paletteer_d("pals::tol")
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(size = 7)) +
+scale_fill_paletteer_d("jcolors::pal12")
 
 area10_plot /point10_plot / marsh_plot
 ```
