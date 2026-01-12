@@ -24,7 +24,11 @@ library(tmap)
 library(janitor)
 library(sf)
 library(stars)
+library(paletteer)
+library(patchwork)
+```
 
+```{r}
 # read in the data
 area_search <- read_csv(here("data", "DataDownload_AreaSearch_2025-09-17_16-05-51.csv")) %>% 
   clean_names()
@@ -40,30 +44,89 @@ gap <- st_read(here("data", "PADUS4_1_State_CA_GDB_KMZ", "PADUS4_1_StateCA.gdb")
 
 Explore area search data
 ```{r}
-# What are the protocols in the dataset?
-print(unique(area_search$protocol_code))
-# Make sure to explore these
-
 # How many unique plots were surveyed?
 print(length(unique(area_search$plot_name)))
 
 # How many unique species codes are there?
 print(length(unique(area_search$species_code)))
 
-
-species_sum <- area_search %>% 
+area10 <- area_search %>% 
   group_by(species_code) %>% 
   summarise(count = n()) %>% 
-  slice_max(order_by = count, n = 20)
+  slice_max(order_by = count, n = 10) %>% 
+  mutate(common_name = recode(species_code, "WREN" = 'Wrentit', "SOSP" = 'Song Sparrow', "CBCH" = 'Chestnut-backed Chickadee',"RCKI" = 'Ruby-crowned Kinglet', "ANHU" = 'Annas Hummingbird' , "SPTO" = 'Spotted Towhee',
+"GCKI" = 'Golden-crowned Kinglet', "BEWR" = 'Bewicks Wren', "WIWA" = 'Wilsons Warbler',
+"BUSH" = 'Bushtit'))
 
-  ggplot(data = species_sum, aes(x = species_code, y = count, fill = species_code)) +
+point10$species_code
+point10 <- point_counts %>% 
+  group_by(species_code) %>% 
+  summarise(count = n()) %>% 
+  slice_max(order_by = count, n = 10) %>% 
+  mutate(common_name = recode(species_code, "RWBL"='Red-winged Blackbird', "SOSP"='Song Sparrow', "SPTO" ='Spotted Towhee',
+"AMGO" ='American Goldfinch',"BHGR"='Black-headed Grosbeak', "BHCO"='Brown-headed Cowbird',
+"BEWR"='Bewicks Wren',"HOFI"='House Finch', "WIWA"='Wilsons Warbler',
+"HEWA"='Hermit Warbler'))
+
+marsh12 <- marshbirds %>% 
+  group_by(common_name) %>% 
+  summarise(count = n()) %>% 
+  mutate(common_name = if_else(
+    is.na(common_name),
+    "Unknown",
+    common_name))
+
+area10_plot <- ggplot(data = area10, aes(x = common_name, y = count, fill = common_name)) +
   geom_bar(stat = "identity") +
-    coord_flip()
+  theme_classic()+
+    coord_flip() +
+  labs(title = "Ten Most Counted Species in Each Type of Survey", 
+       x = "Area Search") +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank()) +
+  scale_fill_paletteer_d("pals::tol")
+
+
+point10_plot <- ggplot(data = point10, aes(x = common_name, y = count, fill = common_name)) +
+  geom_bar(stat = "identity") +
+  theme_classic()+
+    coord_flip() +
+  labs(x = "Point Count") +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank()) +
+  scale_fill_paletteer_d("pals::tol")
+
+
+marsh_plot <- ggplot(data = marsh12, aes(x = common_name, y = count, fill = common_name)) +
+  geom_bar(stat = "identity") +
+  theme_classic()+
+  coord_flip() +
+  labs(x = "Marshbird Survey") +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank()) +
+  scale_fill_paletteer_d("pals::tol")
+
+area10_plot /point10_plot / marsh_plot
 ```
 
 Spatial exploration
 ```{r}
 tm_shape(gap) +
-  tm_polygons()
+  tm_polygons(fill = tm_fill())
 ```
+
+```{r}
+# Store vectors of protocols
+area_prot <- unique(area_search$protocol_code)
+
+point_prot <- unique(point_counts$protocol_code)
+
+marsh_prot <- unique(marshbirds$protocol_code)
+
+```
+
+```{r}
+
+```
+
 
