@@ -1,5 +1,8 @@
 data/
 .Rproj.user
+<<<<<<< HEAD
 
 # Add data to gitignore
 data_9_17/
+=======
+>>>>>>> 8077a82aced4d7ae701b6c17b411f4570ed9240b
